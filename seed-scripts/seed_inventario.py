@@ -24,7 +24,7 @@ from common import (
     mysql_conn_params,
 )
 
-fake = Faker("es_PE")
+fake = Faker("es_ES")
 
 TOTAL_MOVIMIENTOS = 22000
 DIAS_HISTORIA = 90

@@ -15,7 +15,7 @@ from faker import Faker
 
 from common import PRODUCTO_ID_RANGE, chunked, mysql_conn_params
 
-fake = Faker("es_PE")
+fake = Faker("es_ES")
 
 TOTAL_PROVEEDORES = 300
 TOTAL_TIEMPOS_ENTREGA = 21000

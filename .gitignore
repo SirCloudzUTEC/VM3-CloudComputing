@@ -1,0 +1,2 @@
+# Credenciales reales — nunca versionar. Solo se versiona .env.example.
+.env

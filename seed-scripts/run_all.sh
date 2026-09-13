@@ -39,7 +39,7 @@ PG_DB_USER="${POSTGRES_USER:-bodega}"
 PG_DB_PASSWORD="${POSTGRES_PASSWORD:-changeme}"
 
 # --- MongoDB: prediccion_db. ---
-MONGODB_URI="${MONGO_URI:-mongodb://localhost:27017}"
+MONGODB_URI="${MONGO_URI:-mongodb://bodega:changeme@localhost:27017/prediccion_db}"
 MONGODB_DB="${MONGO_DB:-prediccion_db}"
 
 echo "== 1/4 Sembrando inventario_db (MySQL) =="

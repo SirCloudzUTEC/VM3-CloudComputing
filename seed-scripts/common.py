@@ -83,7 +83,7 @@ def postgres_conn_params(default_db):
     }
 
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://bodega:changeme@localhost:27017/prediccion_db")
 MONGO_DB_NAME = os.getenv("MONGO_DB", "prediccion_db")
 
 

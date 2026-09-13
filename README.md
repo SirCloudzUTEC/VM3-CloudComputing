@@ -15,6 +15,16 @@ VM privada (**sin IP pública**) que aloja las 4 bases de datos del proyecto. No
 
 `inventario_db` y `proveedores_db` viven en la **misma instancia de MySQL** (un solo contenedor sirviendo dos bases) para simplificar el despliegue; cada una tiene sus propias tablas e índices y no comparten datos entre sí.
 
+## Usuario de aplicación (contrato con VM1)
+
+Los microservicios de VM1 (`inventario-api`, `proveedores-api`, `ventas-api`) se conectan con `DB_USER=bodega` / `DB_PASSWORD=changeme` (ver sus `.env.example`), no con el usuario administrador de cada motor. Por eso:
+
+- MySQL: además de `MYSQL_ROOT_PASSWORD` (admin), el compose crea el usuario `bodega` vía `MYSQL_USER`/`MYSQL_PASSWORD`, y `mysql/init/01-inventario.sql` y `02-proveedores.sql` le hacen `GRANT ALL PRIVILEGES` sobre `inventario_db` y `proveedores_db` respectivamente.
+- PostgreSQL: `POSTGRES_USER` se define directamente como `bodega` (es el único rol de esa instancia, ya que solo sirve `ventas_db`).
+- MongoDB: además de `MONGO_INITDB_ROOT_USERNAME`/`PASSWORD` (admin, solo para tareas administrativas), `mongo/init/01-init-prediccion.js` crea el usuario `bodega` con rol `readWrite` scoped a `prediccion_db` — es el que usa `prediccion-api` (VM2) para conectarse (ver `MONGO_URI` en `.env.example`).
+
+Si cambias `MYSQL_PASSWORD`/`POSTGRES_PASSWORD`/`MONGO_PASSWORD` en `.env`, actualiza también `DB_PASSWORD`/`MONGO_URI` en los `.env` de los microservicios que consumen esta VM. Para Mongo, además, el usuario `bodega` está *hardcodeado* en `mongo/init/01-init-prediccion.js` (los scripts de init no leen variables de entorno arbitrarias) — si cambias `MONGO_PASSWORD`, actualiza también ese script.
+
 ## Acuerdo de datos ficticios: rango de `producto_id`
 
 Como las bases de datos son independientes (sin foreign keys entre motores/instancias), el equipo usa un rango fijo de `producto_id` compartido: **1 a 1500**. Todas las tablas de todas las bases que referencian un producto (`productos`, `movimientos_inventario`, `ventas_diarias`, `tiempos_entrega`, y los documentos de `predicciones`) usan IDs dentro de ese rango, para que los datos ficticios sean coherentes al cruzarlos entre microservicios.
@@ -37,7 +47,7 @@ cd seed-scripts
 ./run_all.sh
 ```
 
-Esto ejecuta, en orden: `seed_proveedores.py` → `seed_inventario.py` → `seed_ventas.py` → `seed_prediccion.py` (este último es opcional, solo deja documentos de ejemplo en `predicciones` para poder probar `alertas-api` antes de tener corriendo `prediccion-api`). Cada script imprime cuántas filas insertó al final.
+Esto ejecuta, en orden: `seed_inventario.py` → `seed_proveedores.py` → `seed_ventas.py` → `seed_prediccion.py` (este último es opcional, solo deja documentos de ejemplo en `predicciones` para poder probar `alertas-api` antes de tener corriendo `prediccion-api`). Cada script imprime cuántas filas insertó al final. `run_all.sh` arma automáticamente las variables `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME` (y `MONGO_URI`) que cada script necesita a partir de `.env` — ver `seed-scripts/.env.example` para el detalle y para correr un script suelto a mano.
 
 Registros generados:
 - `productos`: ~1,500 (uno por `producto_id`).
@@ -58,3 +68,4 @@ Si se corren los scripts desde fuera de la VM (por ejemplo en el laptop del equi
   - `27017/tcp` (MongoDB) — desde SG de VM2 (prediccion-api).
 - **Ningún** tráfico entra directo desde el balanceador de carga ni desde internet.
 - Acceso administrativo a la instancia vía AWS SSM Session Manager, no SSH abierto.
+- Los 3 motores exigen autenticación a nivel de aplicación (usuario `bodega`, ver sección anterior) — el Security Group es una capa adicional, no la única barrera.

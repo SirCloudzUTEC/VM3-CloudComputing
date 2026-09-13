@@ -67,6 +67,13 @@ services:
     image: mongo:7
     container_name: bodega-mongo
     restart: unless-stopped
+    environment:
+      # Usuario root de la instancia (solo administracion). El usuario de
+      # aplicacion 'bodega' (mismo patron que MYSQL_USER/POSTGRES_USER) lo
+      # crea mongo/init/01-init-prediccion.js, con permisos scoped a
+      # prediccion_db unicamente.
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme_root}
     ports:
       - "27017:27017"
     volumes:
