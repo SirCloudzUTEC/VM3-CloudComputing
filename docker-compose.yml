@@ -1,0 +1,81 @@
+version: "3.8"
+
+# VM3 - Bases de datos (privada, sin IP pública)
+# MySQL sirve inventario_db + proveedores_db, PostgreSQL sirve ventas_db,
+# MongoDB sirve prediccion_db. Ver README.md para reglas de security group.
+
+networks:
+  bodega-db-net:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  postgres-data:
+  mongo-data:
+
+services:
+  mysql:
+    image: mysql:8
+    container_name: bodega-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme_root}
+      # Usuario de aplicacion: es el mismo DB_USER/DB_PASSWORD que usan
+      # inventario-api y proveedores-api (VM1) para conectarse (ver sus
+      # .env.example). El GRANT explicito sobre cada base vive en los
+      # scripts de mysql/init/.
+      MYSQL_USER: ${MYSQL_USER:-bodega}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - bodega-db-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-changeme_root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16
+    container_name: bodega-postgres
+    restart: unless-stopped
+    environment:
+      # POSTGRES_USER es el superusuario de esta instancia Y, a la vez, el
+      # DB_USER que espera ventas-api (VM1) — ver su .env.example. No se crea
+      # un rol aparte porque ventas_db es la unica base en este contenedor.
+      POSTGRES_USER: ${POSTGRES_USER:-bodega}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ventas_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - bodega-db-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bodega}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mongo:
+    image: mongo:7
+    container_name: bodega-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - ./mongo/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - bodega-db-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
